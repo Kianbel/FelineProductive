@@ -1,7 +1,337 @@
 ﻿@page "/"
+@rendermode InteractiveServer
+@using System.Threading
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Feline Productive!</PageTitle>
 
-<h1>Hello, world!</h1>
+<div class="min-h-screen flex flex-col transition-colors duration-500"
+     style="background-image: @(dark ? "radial-gradient(ellipse at 20% 20%, #2a1c0f 0%, transparent 55%), radial-gradient(ellipse at 80% 80%, #0f1f14 0%, transparent 55%)" : "radial-gradient(ellipse at 20% 20%, #f5e0c4 0%, transparent 55%), radial-gradient(ellipse at 80% 80%, #dde8d4 0%, transparent 55%), radial-gradient(ellipse at 60% 10%, #fce8d5 0%, transparent 40%)"); background-color: @(dark ? "#1a1008" : "#fdf6ed"); color: @(dark ? "#f0dfc0" : "#3b2a1a");">
+    
+    <header class="flex items-center justify-between px-8 py-5 border-b transition-colors duration-500"
+            style="border-color: @(dark ? "#3d2a14" : "#ddc9a8")">
+        <div class="flex items-center gap-3">
+            <span class="text-3xl">🐾</span>
+            <div>
+                <h1 class="text-xl font-semibold leading-tight">Feline Productive!</h1>
+                <p class="text-xs" style="color: @(dark ? "#9e7c52" : "#8b6e4e")">a cozy corner for focused minds</p>
+            </div>
+        </div>
 
-Welcome to your new app.
+        <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold"
+                 style="background: @(dark ? "#2e1e0e" : "#f0e6d3"); color: @(dark ? "#9e7c52" : "#8b6e4e")">
+                <span>☕</span>
+                <span>@sessions @(sessions == 1 ? "session" : "sessions") today</span>
+            </div>
+            <button @onclick="ToggleTheme"
+                    class="w-10 h-10 rounded-full flex items-center justify-center text-xl transition-all duration-200 hover:scale-110 active:scale-95"
+                    style="background: @(dark ? "#2e1e0e" : "#f0e6d3"); color: @(dark ? "#f0c060" : "#8b6e4e")"
+                    title="@(dark ? "Light mode" : "Dark mode")">
+                @(dark ? "☀️" : "🌙")
+            </button>
+        </div>
+    </header>
+
+    <main class="flex flex-1 gap-0 overflow-hidden">
+        <section class="flex-1 flex flex-col items-center justify-center px-8 py-10 gap-7">
+            <div class="text-center">
+                <p class="font-mono text-2xl" style="color: @(dark ? "#9e7c52" : "#8b6e4e"); letter-spacing: 0.05em">
+                    @CATS[catIndex]
+                </p>
+                <p class="text-sm mt-1 italic" style="color: @(dark ? "#9e7c52" : "#8b6e4e"); font-family: 'Lora', serif">
+                    @(running ? "\"Purrfect, keep going…\"" : timeLeft == 0 ? "\"Great session! Time for a treat.\"" : "\"Ready when you are, dear.\"")
+                </p>
+            </div>
+
+            <div class="flex gap-1 p-1 rounded-2xl" style="background: @(dark ? "#2e1e0e" : "#e8d5b7")">
+                @foreach (var m in MODES)
+                {
+                    <button @onclick="() => SwitchMode(m.Key)"
+                            class="px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200"
+                            style="@(mode == m.Key 
+                                    ? $"background: {(dark ? "#c0693a" : "#b85c38")}; color: #fef9f3; box-shadow: 0 2px 8px rgba(184,92,56,0.3)" 
+                                    : $"color: {(dark ? "#9e7c52" : "#5c3d1e")}")">
+                        @m.Value.Emoji @m.Value.Label
+                    </button>
+                }
+            </div>
+
+            <div class="relative flex items-center justify-center">
+                <svg width="220" height="220" style="transform: rotate(-90deg)">
+                    <circle cx="110" cy="110" r="88" fill="none" stroke-width="10" stroke="@(dark ? "#2e1e0e" : "#e8d5b7")" />
+                    <circle cx="110" cy="110" r="88" fill="none" stroke-width="10" stroke-linecap="round"
+                            stroke="@(mode == "work" ? (dark ? "#c0693a" : "#b85c38") : (dark ? "#6a9e6e" : "#7a9e7e"))"
+                            stroke-dasharray="@circumference"
+                            stroke-dashoffset="@strokeDashoffset"
+                            style="transition: stroke-dashoffset 0.5s ease" />
+                </svg>
+                <div class="absolute inset-0 flex flex-col items-center justify-center">
+                    <span class="text-5xl font-bold tabular-nums tracking-tight" style="font-family: 'Lora', serif">
+                        @(minutes.ToString("D2")):@(seconds.ToString("D2"))
+                    </span>
+                    <span class="text-sm mt-1 font-semibold" style="color: @(dark ? "#9e7c52" : "#8b6e4e")">
+                        @MODES[mode].Label
+                    </span>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <button @onclick="ResetTimer"
+                        class="w-11 h-11 rounded-full flex items-center justify-center text-lg transition-all duration-150 hover:scale-105 active:scale-95"
+                        style="background: @(dark ? "#2e1e0e" : "#f0e6d3"); color: @(dark ? "#9e7c52" : "#8b6e4e")"
+                        title="Reset">
+                    ↺
+                </button>
+
+                <button @onclick="ToggleRunning"
+                        class="px-10 py-3 rounded-full font-bold text-base transition-all duration-150 hover:scale-105 active:scale-95"
+                        style="@(running ? $"background: {(dark ? "#2e1e0e" : "#e8d5b7")}; color: {(dark ? "#9e7c52" : "#5c3d1e")}; box-shadow: none" 
+                                         : $"background: {(dark ? "#c0693a" : "#b85c38")}; color: #fef9f3; box-shadow: 0 4px 16px rgba(184,92,56,0.35)")">
+                    @(running ? "⏸ Pause" : timeLeft == MODES[mode].Duration ? "▶ Start" : "▶ Resume")
+                </button>
+
+                <button @onclick="NextCat"
+                        class="w-11 h-11 rounded-full flex items-center justify-center text-lg transition-all duration-150 hover:scale-105 active:scale-95"
+                        style="background: @(dark ? "#2e1e0e" : "#f0e6d3"); color: @(dark ? "#9e7c52" : "#8b6e4e")"
+                        title="New cat">
+                    🐱
+                </button>
+            </div>
+
+            <div class="max-w-sm w-full rounded-2xl px-6 py-4 text-center transition-colors duration-500"
+                 style="background: @(dark ? "#221508" : "#fef9f3"); border: 1px solid @(dark ? "#3d2a14" : "#ddc9a8"); opacity: @(quoteFade ? 1 : 0); transition: opacity 0.35s ease, background 0.5s, border-color 0.5s">
+                <p class="text-sm leading-relaxed italic mb-2" style="font-family: 'Lora', serif; color: @(dark ? "#d4a870" : "#5c3d1e")">
+                    "@CAT_QUOTES[quoteIndex].Quote"
+                </p>
+                <p class="text-xs font-semibold" style="color: @(dark ? "#9e7c52" : "#8b6e4e")">
+                    — @CAT_QUOTES[quoteIndex].Author
+                </p>
+                <button @onclick="CycleQuote"
+                        class="mt-2 text-xs underline underline-offset-2 transition-opacity hover:opacity-70"
+                        style="color: @(dark ? "#9e7c52" : "#b85c38")">
+                    next quote
+                </button>
+            </div>
+        </section>
+
+        <div class="w-px self-stretch my-8 transition-colors duration-500" style="background: @(dark ? "#3d2a14" : "#ddc9a8")"></div>
+
+        <aside class="w-80 flex flex-col px-6 py-10 gap-6 overflow-y-auto">
+            <div>
+                <h2 class="text-lg font-semibold">Today's Tasks</h2>
+                <p class="text-xs mt-0.5" style="color: @(dark ? "#9e7c52" : "#8b6e4e")">
+                    @doneTasks of @tasks.Count pawed through
+                </p>
+            </div>
+
+            @if (tasks.Count > 0)
+            {
+                <div class="h-1.5 rounded-full overflow-hidden" style="background: @(dark ? "#2e1e0e" : "#e8d5b7")">
+                    <div class="h-full rounded-full transition-all duration-500"
+                         style="width: @((double)doneTasks / tasks.Count * 100)%; background: @(dark ? "#6a9e6e" : "#7a9e7e")"></div>
+                </div>
+            }
+
+            <form @onsubmit="AddTask" class="flex gap-2">
+                <input type="text" @bind="newTask" @bind:event="oninput" placeholder="Add a task…"
+                       class="flex-1 px-3 py-2.5 rounded-xl text-sm outline-none transition-all duration-200"
+                       style="background: @(dark ? "#221508" : "#fef9f3"); border: 1px solid @(dark ? "#3d2a14" : "#ddc9a8"); color: @(dark ? "#f0dfc0" : "#3b2a1a")" />
+                <button type="submit"
+                        class="w-10 h-10 rounded-xl font-bold text-lg flex items-center justify-center transition-all duration-150 hover:scale-105 active:scale-95"
+                        style="background: @(dark ? "#c0693a" : "#b85c38"); color: #fef9f3">
+                    +
+                </button>
+            </form>
+
+            <ul class="flex flex-col gap-2">
+                @if (tasks.Count == 0)
+                {
+                    <li class="text-center py-8 text-sm italic" style="color: @(dark ? "#9e7c52" : "#8b6e4e"); font-family: 'Lora', serif">
+                        All done! Time for a catnap. 😸
+                    </li>
+                }
+                @foreach (var task in tasks)
+                {
+                    <li class="flex items-start gap-3 px-3 py-3 rounded-xl group transition-all duration-200"
+                        style="background: @(task.Done ? (dark ? "#1c1008" : "#f0e6d3") : (dark ? "#221508" : "#fef9f3")); border: 1px solid @(dark ? "#3d2a14" : "#ddc9a8")">
+                        
+                        <button @onclick="() => ToggleTask(task.Id)"
+                                class="mt-0.5 w-5 h-5 flex-shrink-0 rounded-md border-2 flex items-center justify-center transition-all duration-150"
+                                style="border-color: @(task.Done ? (dark ? "#6a9e6e" : "#7a9e7e") : (dark ? "#3d2a14" : "#ddc9a8")); background: @(task.Done ? (dark ? "#6a9e6e" : "#7a9e7e") : "transparent"); color: #fef9f3">
+                            @if (task.Done) { <span class="text-xs font-bold leading-none">✓</span> }
+                        </button>
+
+                        <span class="flex-1 text-sm leading-relaxed"
+                              style="color: @(task.Done ? (dark ? "#6e5030" : "#8b6e4e") : (dark ? "#f0dfc0" : "#3b2a1a")); text-decoration: @(task.Done ? "line-through" : "none")">
+                            @task.Text
+                        </span>
+
+                        <button @onclick="() => DeleteTask(task.Id)"
+                                class="opacity-40 hover:opacity-100 text-lg transition-opacity duration-150 flex-shrink-0 leading-none"
+                                style="color: @(dark ? "#6e5030" : "#8b6e4e")" title="Remove">
+                            ×
+                        </button>
+                    </li>
+                }
+            </ul>
+        </aside>
+    </main>
+</div>
+
+@code {
+    private bool dark = false;
+    private string mode = "work";
+    private int timeLeft = 25 * 60;
+    private bool running = false;
+    private int sessions = 0;
+    private int catIndex = 0;
+    private int quoteIndex = 0;
+    private bool quoteFade = true;
+    private string newTask = "";
+    private int nextId = 4;
+    private CancellationTokenSource? timerCts;
+
+    private void ToggleTheme() => dark = !dark;
+    private void NextCat() => catIndex = (catIndex + 1) % CATS.Length;
+
+    public class TaskItem
+    {
+        public int Id { get; set; }
+        public string Text { get; set; } = "";
+        public bool Done { get; set; }
+    }
+
+    private List<TaskItem> tasks = new()
+    {
+        new TaskItem { Id = 1, Text = "Read chapter 4", Done = false },
+        new TaskItem { Id = 2, Text = "Finish essay outline", Done = false },
+        new TaskItem { Id = 3, Text = "Review lecture notes", Done = false }
+    };
+    
+    private int doneTasks => tasks.Count(t => t.Done);
+
+    public class ModeInfo
+    {
+        public string Label { get; set; } = "";
+        public int Duration { get; set; }
+        public string Emoji { get; set; } = "";
+    }
+
+    private Dictionary<string, ModeInfo> MODES = new()
+    {
+        { "work", new ModeInfo { Label = "Focus", Duration = 25 * 60, Emoji = "📚" } },
+        { "short", new ModeInfo { Label = "Short Break", Duration = 5 * 60, Emoji = "☕" } },
+        { "long", new ModeInfo { Label = "Long Break", Duration = 15 * 60, Emoji = "🐱" } }
+    };
+
+    private string[] CATS = { "(=^･ω･^=)", "(≧◡≦)", "(=｀ω´=)", "(^-人-^)", "(＾• ω •＾)" };
+
+    private (string Quote, string Author)[] CAT_QUOTES = 
+    {
+        ("A cat does not ask for permission to nap — nor should you ask permission to rest.", "Mochi, the tabby"),
+        ("Stretch before you study. The wisest cats always do.", "Biscuit, senior scholar"),
+        ("One paw in front of the other. That is how mountains are climbed.", "Noodle, the calico"),
+        ("The sun will rise again, and so will your GPA.", "Professor Mittens"),
+        ("Even the most curious cat takes it one task at a time.", "Dumpling, age 3"),
+        ("When in doubt, sit in a warm patch of sunlight and begin again.", "Chairman Fluff")
+    };
+
+    // SVG Math Helpers
+    private double circumference => 2 * Math.PI * 88;
+    private double strokeDashoffset => circumference * (1 - ((double)(MODES[mode].Duration - timeLeft) / MODES[mode].Duration));
+    private int minutes => timeLeft / 60;
+    private int seconds => timeLeft % 60;
+
+    private void AddTask()
+    {
+        if (string.IsNullOrWhiteSpace(newTask)) return;
+        tasks.Add(new TaskItem { Id = nextId++, Text = newTask.Trim(), Done = false });
+        newTask = "";
+    }
+
+    private void ToggleTask(int id)
+    {
+        var task = tasks.FirstOrDefault(t => t.Id == id);
+        if (task != null) task.Done = !task.Done;
+    }
+
+    private void DeleteTask(int id) => tasks.RemoveAll(t => t.Id == id);
+
+    private void SwitchMode(string newMode)
+    {
+        mode = newMode;
+        ResetTimer();
+    }
+
+    private void ResetTimer()
+    {
+        running = false;
+        timerCts?.Cancel();
+        timeLeft = MODES[mode].Duration;
+    }
+
+    private void ToggleRunning()
+    {
+        running = !running;
+        if (running)
+        {
+            timerCts = new CancellationTokenSource();
+            _ = RunTimerAsync(timerCts.Token);
+            _ = RunQuoteCyclerAsync(timerCts.Token);
+        }
+        else
+        {
+            timerCts?.Cancel();
+        }
+    }
+
+    private async Task RunTimerAsync(CancellationToken token)
+    {
+        try
+        {
+            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+            while (await timer.WaitForNextTickAsync(token))
+            {
+                if (timeLeft <= 1)
+                {
+                    timeLeft = 0;
+                    running = false;
+                    if (mode == "work") sessions++;
+                    catIndex = (catIndex + 1) % CATS.Length;
+                    _ = CycleQuoteAsync();
+                    await InvokeAsync(StateHasChanged);
+                    break;
+                }
+                timeLeft--;
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    private async Task RunQuoteCyclerAsync(CancellationToken token)
+    {
+        try
+        {
+            using var timer = new PeriodicTimer(TimeSpan.FromSeconds(30));
+            while (await timer.WaitForNextTickAsync(token))
+            {
+                await CycleQuoteAsync();
+            }
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    private async Task CycleQuoteAsync()
+    {
+        quoteFade = false;
+        await InvokeAsync(StateHasChanged);
+        await Task.Delay(350);
+        quoteIndex = (quoteIndex + 1) % CAT_QUOTES.Length;
+        quoteFade = true;
+        await InvokeAsync(StateHasChanged);
+    }
+    
+    // Manual trigger wrapper for UI
+    private void CycleQuote() => _ = CycleQuoteAsync();
+}
